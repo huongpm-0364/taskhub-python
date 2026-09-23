@@ -1,0 +1,35 @@
+from sqlalchemy.orm import Session
+
+from app.models.project import Project
+
+
+def get_project(db: Session, project_id: int) -> Project | None:
+    return db.get(Project, project_id)
+
+
+def get_projects(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+    name: str | None = None,
+    owner_id: int | None = None,
+) -> list[Project]:
+    query = db.query(Project)
+    if name:
+        query = query.filter(Project.name.ilike(f"%{name}%"))
+    if owner_id is not None:
+        query = query.filter(Project.owner_id == owner_id)
+    return query.offset(skip).limit(limit).all()
+
+
+def create_project(db: Session, *, name: str, description: str | None, owner_id: int) -> Project:
+    db_project = Project(name=name, description=description, owner_id=owner_id)
+    db.add(db_project)
+    db.commit()
+    db.refresh(db_project)
+    return db_project
+
+
+def delete_project(db: Session, db_project: Project) -> None:
+    db.delete(db_project)
+    db.commit()

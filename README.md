@@ -6,15 +6,24 @@ TaskHub API — FastAPI + SQLAlchemy + Alembic.
 
 ```
 app/
-  main.py          FastAPI app, include routers
-  config.py        Đọc config từ .env (pydantic-settings)
-  database.py       Engine, SessionLocal, Base, get_db dependency
-  models/          SQLAlchemy models: User, Project, Task, Comment, Tag
-  schemas/         Pydantic schemas (request/response)
-  crud/            Hàm thao tác DB (get/create ...)
-  routers/         APIRouter: /api/users, /api/projects, /api/tasks
-alembic/           Migration scripts
+  main.py               FastAPI app, include routers
+  api/
+    routers/            APIRouter: /api/users, /api/projects, /api/tasks, /api/tags
+  core/
+    config.py           Đọc config từ .env (pydantic-settings)
+    database.py         Engine, SessionLocal, Base, get_db dependency
+    constants.py         Hằng số dùng chung (độ dài field,...)
+    pagination.py        Hằng số phân trang dùng chung (DEFAULT_SKIP, DEFAULT_LIMIT,...)
+  models/               SQLAlchemy models: User, Project, Task, Comment, Tag
+  schemas/              Pydantic schemas (Create/Update/Read)
+  repositories/         Data access thuần (query DB, không chứa business rule)
+  services/             Business logic (hash password, ràng buộc xóa,...), gọi xuống repositories
+docs/                   Ghi chú/tài liệu project
+migrations/             Alembic migration scripts
+tests/                  Test tự động (pytest)
 ```
+
+Luồng gọi: `router` → `service` (business logic) → `repository` (query DB) → `model`.
 
 ## Setup
 
