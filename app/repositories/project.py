@@ -1,10 +1,13 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.project import Project
 
 
 def get_project(db: Session, project_id: int) -> Project | None:
-    return db.get(Project, project_id)
+    # joinedload is safe here: this fetches a single project by primary key, so there's no
+    # LIMIT/OFFSET for the collection join to interact badly with (see repositories/task.py
+    # for the case where that does matter).
+    return db.get(Project, project_id, options=[joinedload(Project.tasks)])
 
 
 def get_projects(

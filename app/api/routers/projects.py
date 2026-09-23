@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app import services
-from app.core.pagination import DEFAULT_LIMIT, DEFAULT_SKIP, MAX_LIMIT
-from app.services.project import ProjectHasTasksError
 from app.core.database import get_db
-from app.schemas.project import ProjectCreate, ProjectRead
+from app.core.pagination import DEFAULT_LIMIT, DEFAULT_SKIP, MAX_LIMIT
+from app.schemas.project import ProjectCreate, ProjectRead, ProjectWithTasks
+from app.schemas.task import TaskCreateInProject, TaskRead
+from app.services.project import ProjectHasTasksError
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -39,15 +40,45 @@ def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
 
 @router.get(
     "/{project_id}",
-    response_model=ProjectRead,
+    response_model=ProjectWithTasks,
     status_code=status.HTTP_200_OK,
     summary="Get a project by id",
+    description="Returns the project together with its list of tasks.",
 )
 def get_project(project_id: int, db: Session = Depends(get_db)):
     db_project = services.project.get_project(db, project_id)
     if db_project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     return db_project
+
+
+@router.get(
+    "/{project_id}/tasks",
+    response_model=list[TaskRead],
+    status_code=status.HTTP_200_OK,
+    summary="List tasks in a project",
+)
+def list_project_tasks(
+    project_id: int,
+    skip: int = Query(default=DEFAULT_SKIP, ge=0),
+    limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
+    db: Session = Depends(get_db),
+):
+    if services.project.get_project(db, project_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    return services.task.get_tasks_by_project(db, project_id, skip=skip, limit=limit)
+
+
+@router.post(
+    "/{project_id}/tasks",
+    response_model=TaskRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a task in a project",
+)
+def create_project_task(project_id: int, task: TaskCreateInProject, db: Session = Depends(get_db)):
+    if services.project.get_project(db, project_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    return services.task.create_task_for_project(db, project_id, task)
 
 
 @router.delete(

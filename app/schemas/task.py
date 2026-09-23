@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.constants import TASK_TITLE_MAX_LENGTH
 from app.models.enums import TaskStatus
+from app.schemas.tag import TagRead
 
 
 class TaskBase(BaseModel):
@@ -14,6 +15,12 @@ class TaskBase(BaseModel):
 
 class TaskCreate(TaskBase):
     project_id: int
+    assignee_id: int | None = None
+
+
+class TaskCreateInProject(TaskBase):
+    """Same fields as TaskCreate, minus project_id (that comes from the URL path)."""
+
     assignee_id: int | None = None
 
 
@@ -32,3 +39,4 @@ class TaskRead(TaskBase):
     assignee_id: int | None = None
     created_at: datetime
     updated_at: datetime
+    tags: list[TagRead] = []

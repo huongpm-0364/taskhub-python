@@ -14,6 +14,10 @@ def get_user(db: Session, user_id: int) -> User | None:
     return repositories.user.get_user(db, user_id)
 
 
+def get_user_by_username(db: Session, username: str) -> User | None:
+    return repositories.user.get_user_by_username(db, username)
+
+
 def get_users(db: Session, skip: int = 0, limit: int = 100) -> list[User]:
     return repositories.user.get_users(db, skip=skip, limit=limit)
 

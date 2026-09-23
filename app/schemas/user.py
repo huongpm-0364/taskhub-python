@@ -3,6 +3,8 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.core.constants import USERNAME_MAX_LENGTH
+from app.schemas.project import ProjectRead
+from app.schemas.task import TaskRead
 
 
 class UserBase(BaseModel):
@@ -26,3 +28,8 @@ class UserRead(UserBase):
     id: int
     is_active: bool
     created_at: datetime
+
+
+class UserProfile(UserRead):
+    projects: list[ProjectRead] = []
+    tasks: list[TaskRead] = []
