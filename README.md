@@ -12,12 +12,13 @@ app/
   core/
     config.py           Đọc config từ .env (pydantic-settings)
     database.py         Engine, SessionLocal, Base, get_db dependency
+    security.py         Hash password (bcrypt), tạo/giải mã JWT access token
     constants.py         Hằng số dùng chung (độ dài field,...)
     pagination.py        Hằng số phân trang dùng chung (DEFAULT_SKIP, DEFAULT_LIMIT,...)
   models/               SQLAlchemy models: User, Project, Task, Comment, Tag
   schemas/              Pydantic schemas (Create/Update/Read)
   repositories/         Data access thuần (query DB, không chứa business rule)
-  services/             Business logic (hash password, ràng buộc xóa,...), gọi xuống repositories
+  services/             Business logic (hash password, JWT, ràng buộc xóa,...), gọi xuống repositories
 docs/                   Ghi chú/tài liệu project
 migrations/             Alembic migration scripts
 tests/                  Test tự động (pytest)
@@ -68,6 +69,29 @@ uvicorn app.main:app --reload
 
 Mở http://127.0.0.1:8000/docs để xem Swagger UI và thử các endpoint
 `/api/users`, `/api/projects`, `/api/tasks`.
+
+## Xác thực (JWT)
+
+```bash
+# Đăng ký
+curl -X POST http://127.0.0.1:8000/api/users/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"a@a.com","username":"alice","password":"secret123"}'
+
+# Đăng nhập — lưu ý: form data (application/x-www-form-urlencoded), không phải JSON
+curl -X POST http://127.0.0.1:8000/api/users/login \
+  -d "username=alice&password=secret123"
+
+# Gọi endpoint cần xác thực
+curl http://127.0.0.1:8000/api/users/me -H "Authorization: Bearer <access_token>"
+```
+
+Trong Swagger UI (`/docs`): bấm nút **Authorize** ở góc trên, đăng nhập bằng
+username/password — Swagger tự lấy token và gắn vào các request tiếp theo, không cần
+copy token thủ công.
+
+`SECRET_KEY` trong `.env.example` chỉ dùng để dev local — nhớ đổi giá trị thật khi
+deploy (`python -c "import secrets; print(secrets.token_hex(32))"`).
 
 ## Chạy test
 
