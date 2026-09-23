@@ -34,7 +34,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# sửa DATABASE_URL trỏ tới Postgres/MySQL của bạn
+
 ```
 
 Setup Postgres local bằng Homebrew (macOS):
@@ -92,6 +92,19 @@ copy token thủ công.
 
 `SECRET_KEY` trong `.env.example` chỉ dùng để dev local — nhớ đổi giá trị thật khi
 deploy (`python -c "import secrets; print(secrets.token_hex(32))"`).
+
+## Phân quyền
+
+- `GET /api/users/` — chỉ role `admin` gọi được.
+- `DELETE /api/projects/{id}` — chỉ chủ sở hữu project (hoặc admin) mới xóa được.
+- `POST /api/tasks/{id}/bookmark` — cần đăng nhập (bất kỳ user nào).
+
+Chưa có endpoint "promote user thành admin" (ngoài phạm vi các bài hiện tại). Muốn test
+cục bộ, tự sửa trực tiếp trong DB:
+
+```sql
+UPDATE users SET role = 'admin' WHERE username = 'your_username';
+```
 
 ## Chạy test
 

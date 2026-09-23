@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app import services
+from app.api.deps import verify_project_manager
 from app.core.database import get_db
 from app.core.pagination import DEFAULT_LIMIT, DEFAULT_SKIP, MAX_LIMIT
+from app.models.project import Project
 from app.schemas.project import ProjectCreate, ProjectRead, ProjectWithTasks
 from app.schemas.task import TaskCreateInProject, TaskRead
 from app.services.project import ProjectHasTasksError
@@ -85,12 +87,15 @@ def create_project_task(project_id: int, task: TaskCreateInProject, db: Session 
     "/{project_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a project",
-    description="Fails with 409 if the project still has tasks attached.",
+    description=(
+        "Only the project's owner (or an admin) can delete it. "
+        "Fails with 409 if the project still has tasks attached."
+    ),
 )
-def delete_project(project_id: int, db: Session = Depends(get_db)):
-    db_project = services.project.get_project(db, project_id)
-    if db_project is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+def delete_project(
+    db: Session = Depends(get_db),
+    db_project: Project = Depends(verify_project_manager),
+):
     try:
         services.project.delete_project(db, db_project)
     except ProjectHasTasksError as exc:

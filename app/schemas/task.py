@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.constants import TASK_TITLE_MAX_LENGTH
-from app.models.enums import TaskStatus
+from app.models.enums import TaskPriority, TaskStatus
 from app.schemas.tag import TagRead
 
 
@@ -11,6 +11,7 @@ class TaskBase(BaseModel):
     title: str = Field(max_length=TASK_TITLE_MAX_LENGTH)
     description: str | None = None
     status: TaskStatus = TaskStatus.todo
+    priority: TaskPriority = TaskPriority.medium
 
 
 class TaskCreate(TaskBase):
@@ -28,6 +29,7 @@ class TaskUpdate(BaseModel):
     title: str | None = Field(default=None, max_length=TASK_TITLE_MAX_LENGTH)
     description: str | None = None
     status: TaskStatus | None = None
+    priority: TaskPriority | None = None
     assignee_id: int | None = None
 
 

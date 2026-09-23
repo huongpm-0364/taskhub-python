@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.core.constants import USERNAME_MAX_LENGTH
+from app.models.enums import UserRole
 from app.schemas.project import ProjectRead
 from app.schemas.task import TaskRead
 
@@ -27,6 +28,9 @@ class UserRead(UserBase):
 
     id: int
     is_active: bool
+    # Read-only: intentionally absent from UserCreate/UserUpdate so a client can never
+    # set their own role through the public API.
+    role: UserRole
     created_at: datetime
 
 

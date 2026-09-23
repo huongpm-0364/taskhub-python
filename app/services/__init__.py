@@ -1,3 +1,3 @@
-from app.services import auth, project, tag, task, user
+from app.services import auth, bookmark, project, tag, task, user
 
-__all__ = ["user", "project", "task", "tag", "auth"]
+__all__ = ["user", "project", "task", "tag", "auth", "bookmark"]

@@ -22,7 +22,7 @@ def get_projects(
         query = query.filter(Project.name.ilike(f"%{name}%"))
     if owner_id is not None:
         query = query.filter(Project.owner_id == owner_id)
-    return query.offset(skip).limit(limit).all()
+    return query.order_by(Project.id).offset(skip).limit(limit).all()
 
 
 def create_project(db: Session, *, name: str, description: str | None, owner_id: int) -> Project:

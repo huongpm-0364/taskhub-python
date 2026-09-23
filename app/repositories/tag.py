@@ -8,7 +8,7 @@ def get_tag(db: Session, tag_id: int) -> Tag | None:
 
 
 def get_tags(db: Session, skip: int = 0, limit: int = 100) -> list[Tag]:
-    return db.query(Tag).offset(skip).limit(limit).all()
+    return db.query(Tag).order_by(Tag.id).offset(skip).limit(limit).all()
 
 
 def create_tag(db: Session, *, name: str) -> Tag:

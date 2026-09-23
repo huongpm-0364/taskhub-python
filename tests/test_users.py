@@ -1,3 +1,19 @@
+from app.models.enums import UserRole
+from app.models.user import User
+
+
+def _login(client, username, password="secret123") -> str:
+    return client.post(
+        "/api/users/login", data={"username": username, "password": password}
+    ).json()["access_token"]
+
+
+def _make_admin(db_session, username) -> None:
+    user = db_session.query(User).filter(User.username == username).first()
+    user.role = UserRole.admin
+    db_session.commit()
+
+
 def test_create_user(client):
     response = client.post(
         "/api/users/",
@@ -27,15 +43,37 @@ def test_get_user_not_found(client):
     assert response.status_code == 404
 
 
-def test_list_users(client):
+def test_list_users_requires_auth(client):
+    response = client.get("/api/users/")
+    assert response.status_code == 401
+
+
+def test_list_users_requires_admin(client):
     client.post(
         "/api/users/",
         json={"email": "carol@example.com", "username": "carol", "password": "secret123"},
     )
+    token = _login(client, "carol")
 
-    response = client.get("/api/users/")
+    response = client.get("/api/users/", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 403
+
+
+def test_list_users_as_admin(client, db_session):
+    client.post(
+        "/api/users/",
+        json={"email": "carol@example.com", "username": "carol", "password": "secret123"},
+    )
+    client.post(
+        "/api/users/",
+        json={"email": "root@example.com", "username": "root", "password": "secret123"},
+    )
+    _make_admin(db_session, "root")
+    token = _login(client, "root")
+
+    response = client.get("/api/users/", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
-    assert len(response.json()) == 1
+    assert len(response.json()) == 2
 
 
 def test_get_user_profile(client):

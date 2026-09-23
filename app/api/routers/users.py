@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app import services
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, verify_admin_role
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.pagination import DEFAULT_LIMIT, DEFAULT_SKIP, MAX_LIMIT
@@ -24,11 +24,13 @@ router = APIRouter(prefix="/api/users", tags=["users"])
     response_model=list[UserRead],
     status_code=status.HTTP_200_OK,
     summary="List users",
+    description="Admin only.",
 )
 def list_users(
     skip: int = Query(default=DEFAULT_SKIP, ge=0),
     limit: int = Query(default=DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
     db: Session = Depends(get_db),
+    _admin: User = Depends(verify_admin_role),
 ):
     return services.user.get_users(db, skip=skip, limit=limit)
 

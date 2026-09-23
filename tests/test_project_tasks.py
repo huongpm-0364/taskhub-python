@@ -57,6 +57,18 @@ def test_list_project_tasks_project_not_found(client):
     assert response.status_code == 404
 
 
+def test_list_project_tasks_pagination(client):
+    project_id = _create_project(client)
+    for i in range(15):
+        client.post("/api/tasks/", json={"title": f"Task {i}", "project_id": project_id})
+
+    response = client.get(f"/api/projects/{project_id}/tasks", params={"skip": 10, "limit": 5})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 5
+    assert [task["title"] for task in data] == [f"Task {i}" for i in range(10, 15)]
+
+
 def test_create_task_in_project(client):
     project_id = _create_project(client)
 
