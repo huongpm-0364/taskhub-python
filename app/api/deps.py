@@ -6,8 +6,10 @@ from sqlalchemy.orm import Session
 from app import services
 from app.core.database import get_db
 from app.core.security import decode_access_token
+from app.models.comment import Comment
 from app.models.enums import UserRole
 from app.models.project import Project
+from app.models.task import Task
 from app.models.user import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/users/login")
@@ -69,3 +71,41 @@ def verify_project_manager(
             detail="Only the project's owner (or an admin) can perform this action",
         )
     return project
+
+
+def verify_task_manager(
+    task_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> Task:
+    """Like verify_project_manager, but for routes keyed by task_id instead of
+    project_id (e.g. assigning a task) — resolves the task's project to check ownership.
+    """
+    task = services.task.get_task(db, task_id)
+    if task is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+    if current_user.role != UserRole.admin and task.project.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the task's project manager (or an admin) can perform this action",
+        )
+    return task
+
+
+def verify_comment_owner_or_manager(
+    task_id: int,
+    comment_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+) -> Comment:
+    comment = services.comment.get_comment(db, comment_id)
+    if comment is None or comment.task_id != task_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+    is_author = comment.author_id == current_user.id
+    is_manager = current_user.role == UserRole.admin or comment.task.project.owner_id == current_user.id
+    if not (is_author or is_manager):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the comment's author (or the task's project manager/admin) can perform this action",
+        )
+    return comment

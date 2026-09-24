@@ -106,6 +106,17 @@ cục bộ, tự sửa trực tiếp trong DB:
 UPDATE users SET role = 'admin' WHERE username = 'your_username';
 ```
 
+## Assign task & Comment (transaction)
+
+- `POST /api/tasks/{task_id}/assign` — chỉ project manager (chủ project) hoặc admin được
+  gọi. Đổi `assignee_id` **và** ghi lại 1 comment lịch sử ("Reassigned from ... to ...")
+  trong **cùng 1 transaction**: nếu ghi comment thất bại, việc đổi assignee cũng bị
+  rollback theo — xem `services/task.py::assign_task`.
+- `POST /api/tasks/{task_id}/comments` — cần đăng nhập.
+- `PUT /api/tasks/{task_id}/comments/{comment_id}` và
+  `DELETE /api/tasks/{task_id}/comments/{comment_id}` — chỉ tác giả comment, project
+  manager của task đó, hoặc admin mới sửa/xóa được.
+
 ## Chạy test
 
 ```bash

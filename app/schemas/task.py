@@ -25,6 +25,10 @@ class TaskCreateInProject(TaskBase):
     assignee_id: int | None = None
 
 
+class TaskAssign(BaseModel):
+    assignee_id: int
+
+
 class TaskUpdate(BaseModel):
     title: str | None = Field(default=None, max_length=TASK_TITLE_MAX_LENGTH)
     description: str | None = None

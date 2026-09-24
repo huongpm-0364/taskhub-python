@@ -1,3 +1,3 @@
-from app.repositories import bookmark, project, tag, task, user
+from app.repositories import bookmark, comment, project, tag, task, user
 
-__all__ = ["user", "project", "task", "tag", "bookmark"]
+__all__ = ["user", "project", "task", "tag", "bookmark", "comment"]
