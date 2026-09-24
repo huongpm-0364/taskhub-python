@@ -13,6 +13,8 @@ app/
     config.py           Đọc config từ .env (pydantic-settings)
     database.py         Engine, SessionLocal, Base, get_db dependency
     security.py         Hash password (bcrypt), tạo/giải mã JWT access token
+    cache.py             Redis client + get/set/delete JSON, tự fallback nếu Redis down
+    email.py             Gửi email (hiện chỉ log ra console, chưa nối provider thật)
     constants.py         Hằng số dùng chung (độ dài field,...)
     pagination.py        Hằng số phân trang dùng chung (DEFAULT_SKIP, DEFAULT_LIMIT,...)
   models/               SQLAlchemy models: User, Project, Task, Comment, Tag
@@ -117,11 +119,37 @@ UPDATE users SET role = 'admin' WHERE username = 'your_username';
   `DELETE /api/tasks/{task_id}/comments/{comment_id}` — chỉ tác giả comment, project
   manager của task đó, hoặc admin mới sửa/xóa được.
 
+## Background Tasks (gửi thông báo)
+
+`POST /api/tasks/{task_id}/comments` sau khi lưu comment sẽ **chạy nền** (FastAPI
+`BackgroundTasks`, không chặn response) một tác vụ "gửi email" cho người được assign
+task (hoặc project owner nếu task chưa ai nhận), trừ khi người comment chính là người
+đó. Project hiện chưa cấu hình email provider thật nên `app/core/email.py` chỉ log ra
+console (`taskhub.email` logger) — thay phần thân hàm `send_email()` bằng lời gọi
+SMTP/SES/... thật khi cần, phần gọi nó ở nơi khác không cần đổi.
+
+## Caching (Redis)
+
+`GET /api/tags` cache toàn bộ danh sách (TTL 5 phút, key `tags:all`) vì tag là dữ liệu
+nhỏ và ít đổi. Tạo tag mới sẽ tự invalidate cache. Nếu Redis không kết nối được, app
+**không lỗi** — tự động fallback về đọc thẳng từ Postgres (xem `app/core/cache.py`).
+
+Setup Redis local bằng Homebrew (macOS):
+
+```bash
+brew install redis
+brew services start redis
+```
+
+`.env` mặc định đã trỏ `REDIS_URL=redis://localhost:6379/0`, không cần chỉnh gì thêm
+nếu chạy Redis local mặc định.
+
 ## Chạy test
 
 ```bash
 pytest
 ```
 
-Test dùng SQLite in-memory riêng (qua `tests/conftest.py`), không đụng vào database
-thật đang cấu hình trong `.env`.
+Test dùng SQLite in-memory riêng (qua `tests/conftest.py`) và cache giả lập trong bộ
+nhớ (fixture `fake_cache`, tự động áp dụng cho mọi test) — không đụng vào database hay
+Redis thật đang cấu hình trong `.env`.

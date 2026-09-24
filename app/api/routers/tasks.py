@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app import services
@@ -108,14 +108,20 @@ def bookmark_task(
 def create_comment(
     task_id: int,
     payload: CommentCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    if services.task.get_task(db, task_id) is None:
+    task = services.task.get_task(db, task_id)
+    if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
-    return services.comment.create_comment(
+    comment = services.comment.create_comment(
         db, task_id=task_id, author_id=current_user.id, content=payload.content
     )
+    services.notifications.notify_new_comment(
+        background_tasks, task=task, comment=comment, author=current_user
+    )
+    return comment
 
 
 @router.put(
