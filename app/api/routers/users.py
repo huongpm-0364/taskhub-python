@@ -1,20 +1,20 @@
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from app import services
 from app.api.deps import get_current_active_user, verify_admin_role
+from app.core import messages
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.exceptions import NotFoundError, UnauthorizedError
 from app.core.pagination import DEFAULT_LIMIT, DEFAULT_SKIP, MAX_LIMIT
 from app.core.security import create_access_token
 from app.models.user import User
 from app.schemas.token import Token
 from app.schemas.user import UserCreate, UserProfile, UserRead, UserUpdate
-from app.services.auth import authenticate_user
-from app.services.user import UserAlreadyExistsError
+from app.services import auth, user
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -32,7 +32,7 @@ def list_users(
     db: Session = Depends(get_db),
     _admin: User = Depends(verify_admin_role),
 ):
-    return services.user.get_users(db, skip=skip, limit=limit)
+    return user.get_users(db, skip=skip, limit=limit)
 
 
 @router.post(
@@ -41,11 +41,8 @@ def list_users(
     status_code=status.HTTP_201_CREATED,
     summary="Create a user",
 )
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    try:
-        return services.user.create_user(db, user)
-    except UserAlreadyExistsError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+def create_user(payload: UserCreate, db: Session = Depends(get_db)):
+    return user.create_user(db, payload)
 
 
 # NOTE: literal routes below (/register, /login, /me) must stay registered before
@@ -58,11 +55,8 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     status_code=status.HTTP_201_CREATED,
     summary="Register a new account",
 )
-def register(user: UserCreate, db: Session = Depends(get_db)):
-    try:
-        return services.user.create_user(db, user)
-    except UserAlreadyExistsError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+def register(payload: UserCreate, db: Session = Depends(get_db)):
+    return user.create_user(db, payload)
 
 
 @router.post(
@@ -72,17 +66,15 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     summary="Log in and get an access token",
 )
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = authenticate_user(db, form_data.username, form_data.password)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+    db_user = auth.authenticate_user(db, form_data.username, form_data.password)
+    if db_user is None:
+        raise UnauthorizedError(
+            messages.INCORRECT_USERNAME_OR_PASSWORD, headers={"WWW-Authenticate": "Bearer"}
         )
     # subject is the user's id, not username: the id never changes, so renaming a
     # username later (PUT /me) doesn't invalidate tokens already issued for that account.
     access_token = create_access_token(
-        subject=str(user.id),
+        subject=str(db_user.id),
         expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
     )
     return Token(access_token=access_token)
@@ -109,10 +101,7 @@ def update_current_user(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    try:
-        return services.user.update_user(db, current_user, user_update)
-    except UserAlreadyExistsError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return user.update_user(db, current_user, user_update)
 
 
 @router.get(
@@ -122,9 +111,9 @@ def update_current_user(
     summary="Get a user by id",
 )
 def get_user(user_id: int, db: Session = Depends(get_db)):
-    db_user = services.user.get_user(db, user_id)
+    db_user = user.get_user(db, user_id)
     if db_user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise NotFoundError(messages.USER_NOT_FOUND)
     return db_user
 
 
@@ -136,7 +125,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     description="Returns the user together with the projects they own and the tasks assigned to them.",
 )
 def get_user_profile(username: str, db: Session = Depends(get_db)):
-    db_user = services.user.get_user_profile_by_username(db, username)
+    db_user = user.get_user_profile_by_username(db, username)
     if db_user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise NotFoundError(messages.USER_NOT_FOUND)
     return db_user

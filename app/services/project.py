@@ -1,16 +1,18 @@
 from sqlalchemy.orm import Session
 
-from app import repositories
+from app.core import messages
+from app.core.exceptions import ConflictError
 from app.models.project import Project
+from app.repositories import project
 from app.schemas.project import ProjectCreate
 
 
-class ProjectHasTasksError(Exception):
+class ProjectHasTasksError(ConflictError):
     """Raised when trying to delete a project that still has tasks attached."""
 
 
 def get_project(db: Session, project_id: int) -> Project | None:
-    return repositories.project.get_project(db, project_id)
+    return project.get_project(db, project_id)
 
 
 def get_projects(
@@ -20,22 +22,23 @@ def get_projects(
     name: str | None = None,
     owner_id: int | None = None,
 ) -> list[Project]:
-    return repositories.project.get_projects(db, skip=skip, limit=limit, name=name, owner_id=owner_id)
+    return project.get_projects(db, skip=skip, limit=limit, name=name, owner_id=owner_id)
 
 
-def create_project(db: Session, project: ProjectCreate) -> Project:
-    return repositories.project.create_project(
+def create_project(db: Session, payload: ProjectCreate) -> Project:
+    return project.create_project(
         db,
-        name=project.name,
-        description=project.description,
-        owner_id=project.owner_id,
+        name=payload.name,
+        description=payload.description,
+        owner_id=payload.owner_id,
     )
 
 
 def delete_project(db: Session, db_project: Project) -> None:
     if db_project.tasks:
         raise ProjectHasTasksError(
-            f"Project {db_project.id} still has {len(db_project.tasks)} task(s); "
-            "move or delete them before deleting the project."
+            messages.PROJECT_HAS_TASKS_TEMPLATE.format(
+                project_id=db_project.id, task_count=len(db_project.tasks)
+            )
         )
-    repositories.project.delete_project(db, db_project)
+    project.delete_project(db, db_project)

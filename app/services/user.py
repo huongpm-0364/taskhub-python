@@ -1,48 +1,50 @@
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import repositories
+from app.core import messages
+from app.core.exceptions import ConflictError
 from app.core.security import hash_password
 from app.models.user import User
+from app.repositories import user
 from app.schemas.user import UserCreate, UserUpdate
 
 
-class UserAlreadyExistsError(Exception):
+class UserAlreadyExistsError(ConflictError):
     """Raised when the email or username is already taken."""
 
 
 def get_user(db: Session, user_id: int) -> User | None:
-    return repositories.user.get_user(db, user_id)
+    return user.get_user(db, user_id)
 
 
 def get_user_by_username(db: Session, username: str) -> User | None:
-    return repositories.user.get_user_by_username(db, username)
+    return user.get_user_by_username(db, username)
 
 
 def get_user_profile_by_username(db: Session, username: str) -> User | None:
-    return repositories.user.get_user_profile_by_username(db, username)
+    return user.get_user_profile_by_username(db, username)
 
 
 def get_users(db: Session, skip: int = 0, limit: int = 100) -> list[User]:
-    return repositories.user.get_users(db, skip=skip, limit=limit)
+    return user.get_users(db, skip=skip, limit=limit)
 
 
-def create_user(db: Session, user: UserCreate) -> User:
+def create_user(db: Session, payload: UserCreate) -> User:
     try:
-        return repositories.user.create_user(
+        return user.create_user(
             db,
-            email=user.email,
-            username=user.username,
-            hashed_password=hash_password(user.password),
+            email=payload.email,
+            username=payload.username,
+            hashed_password=hash_password(payload.password),
         )
     except IntegrityError as exc:
         db.rollback()
-        raise UserAlreadyExistsError("Email or username already registered") from exc
+        raise UserAlreadyExistsError(messages.EMAIL_OR_USERNAME_ALREADY_REGISTERED) from exc
 
 
 def update_user(db: Session, db_user: User, user_update: UserUpdate) -> User:
     try:
-        return repositories.user.update_user(
+        return user.update_user(
             db,
             db_user,
             email=user_update.email,
@@ -51,4 +53,4 @@ def update_user(db: Session, db_user: User, user_update: UserUpdate) -> User:
         )
     except IntegrityError as exc:
         db.rollback()
-        raise UserAlreadyExistsError("Email or username already taken") from exc
+        raise UserAlreadyExistsError(messages.EMAIL_OR_USERNAME_ALREADY_TAKEN) from exc

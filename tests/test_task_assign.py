@@ -122,8 +122,8 @@ def test_assign_task_rolls_back_assignee_change_if_comment_insert_fails(client, 
     must not stick either — otherwise the task's assignee and its own history would
     silently disagree.
     """
-    from app import repositories
     from app.models.task import Task
+    from app.repositories import comment
 
     owner_id, project_id, task_id = _create_project_and_task(client)
     assignee_id = _create_user(client, username="dev", email="dev@example.com")
@@ -131,7 +131,7 @@ def test_assign_task_rolls_back_assignee_change_if_comment_insert_fails(client, 
     def boom(*args, **kwargs):
         raise RuntimeError("simulated failure while writing the audit comment")
 
-    monkeypatch.setattr(repositories.comment, "create_comment", boom)
+    monkeypatch.setattr(comment, "create_comment", boom)
 
     with pytest.raises(RuntimeError):
         client.post(
