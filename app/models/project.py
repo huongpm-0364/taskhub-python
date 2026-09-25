@@ -17,6 +17,7 @@ class Project(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     owner: Mapped["User"] = relationship(back_populates="projects")
-    # No delete cascade here on purpose: services.project.delete_project() enforces that a
-    # project can't be deleted while it still has tasks (see ProjectHasTasksError).
+    # No delete cascade here on purpose: app/services/project.py's delete_project()
+    # enforces that a project can't be deleted while it still has tasks (see
+    # ProjectHasTasksError).
     tasks: Mapped[list["Task"]] = relationship(back_populates="project")

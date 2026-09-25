@@ -11,6 +11,15 @@ def get_tags(db: Session, skip: int = 0, limit: int = 100) -> list[Tag]:
     return db.query(Tag).order_by(Tag.id).offset(skip).limit(limit).all()
 
 
+def get_all_tags(db: Session) -> list[Tag]:
+    """Every tag, unpaginated — used to warm the full-list cache (see services/tag.py).
+
+    Fine to leave unpaginated: tags are a small, rarely-changing reference list, not
+    something expected to grow into the thousands.
+    """
+    return db.query(Tag).order_by(Tag.id).all()
+
+
 def create_tag(db: Session, *, name: str) -> Tag:
     db_tag = Tag(name=name)
     db.add(db_tag)
