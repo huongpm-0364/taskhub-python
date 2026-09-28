@@ -15,6 +15,9 @@ app/
     security.py         Hash password (bcrypt), tạo/giải mã JWT access token
     cache.py             Redis client + get/set/delete JSON, tự fallback nếu Redis down
     email.py             Gửi email (hiện chỉ log ra console, chưa nối provider thật)
+    logging_config.py    Cấu hình logging tập trung (1 chỗ duy nhất, gọi lúc khởi động)
+    exceptions.py        AppError + subclass (404/401/403/409,...) — 1 handler chung ở main.py
+    messages.py          Message lỗi tập trung 1 file, dùng chung cho routers/deps
     constants.py         Hằng số dùng chung (độ dài field,...)
     pagination.py        Hằng số phân trang dùng chung (DEFAULT_SKIP, DEFAULT_LIMIT,...)
   models/               SQLAlchemy models: User, Project, Task, Comment, Tag
@@ -24,6 +27,9 @@ app/
 docs/                   Ghi chú/tài liệu project
 migrations/             Alembic migration scripts
 tests/                  Test tự động (pytest)
+Dockerfile              Build image cho app
+docker-compose.yml      app + Postgres + Redis
+docker-entrypoint.sh    Chạy alembic upgrade head rồi mới start uvicorn
 ```
 
 Luồng gọi: `router` → `service` (business logic) → `repository` (query DB) → `model`.
@@ -144,6 +150,23 @@ brew services start redis
 `.env` mặc định đã trỏ `REDIS_URL=redis://localhost:6379/0`, không cần chỉnh gì thêm
 nếu chạy Redis local mặc định.
 
+## CORS
+
+Frontend gọi API từ trình duyệt cần origin của nó nằm trong danh sách cho phép. Sửa
+`CORS_ORIGINS` trong `.env` (danh sách origin cách nhau bởi dấu phẩy), mặc định đã mở
+sẵn cho `http://localhost:3000` và `http://localhost:5173` (React CRA / Vite).
+
+## Logging
+
+Toàn bộ log của app (`taskhub`, `taskhub.email`, `taskhub.cache`, `taskhub.errors`)
+được cấu hình tập trung 1 chỗ ở `app/core/logging_config.py`, gọi 1 lần lúc khởi động
+(`app/main.py`). Chỉnh mức log qua `LOG_LEVEL` trong `.env` (mặc định `INFO`).
+
+Mọi lỗi không lường trước (bug thật, không phải lỗi nghiệp vụ 4xx) đều được log lại đầy
+đủ traceback ở server (`taskhub.errors`) nhưng trả về client một response 500 gọn gàng,
+không lộ chi tiết implementation — xem `unhandled_exception_handler` trong
+`app/main.py`.
+
 ## Chạy test
 
 ```bash
@@ -153,3 +176,28 @@ pytest
 Test dùng SQLite in-memory riêng (qua `tests/conftest.py`) và cache giả lập trong bộ
 nhớ (fixture `fake_cache`, tự động áp dụng cho mọi test) — không đụng vào database hay
 Redis thật đang cấu hình trong `.env`.
+
+## Chạy bằng Docker
+
+Cần Docker (Docker Desktop, hoặc trên macOS có thể dùng
+[colima](https://github.com/abiosoft/colima): `brew install colima docker docker-compose && colima start`).
+
+```bash
+docker compose up --build
+```
+
+Lệnh này dựng 3 container: `app` (FastAPI), `db` (Postgres 16), `redis` (Redis 7).
+`app` tự chờ `db`/`redis` "healthy" rồi mới khởi động, và `docker-entrypoint.sh` tự chạy
+`alembic upgrade head` trước khi start server — không cần làm gì thêm thủ công.
+
+Mở http://127.0.0.1:8000/docs sau khi container `app` lên.
+
+Muốn đổi `SECRET_KEY`/`CORS_ORIGINS` cho môi trường thật, set biến môi trường tương ứng
+trước khi chạy (`docker-compose.yml` đọc `${SECRET_KEY}`, `${CORS_ORIGINS}` nếu có, nếu
+không sẽ dùng giá trị mặc định cho dev).
+
+Dừng và xoá toàn bộ (kể cả data Postgres):
+
+```bash
+docker compose down -v
+```
