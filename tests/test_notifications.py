@@ -75,7 +75,7 @@ def test_comment_on_unassigned_task_falls_back_to_project_owner(client, monkeypa
     monkeypatch.setattr(email, "send_email", lambda **kwargs: sent.append(kwargs))
 
     owner = _create_user(client, "owner", "owner@example.com")
-    commenter = _create_user(client, "commenter", "commenter@example.com")
+    _create_user(client, "commenter", "commenter@example.com")
     project = client.post(
         "/api/projects/", json={"name": "TaskHub Core", "owner_id": owner["id"]}
     ).json()

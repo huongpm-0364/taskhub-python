@@ -33,3 +33,6 @@ PROJECT_HAS_TASKS_TEMPLATE = (
     "Project {project_id} still has {task_count} task(s); "
     "move or delete them before deleting the project."
 )
+
+# --- Server errors ---
+INTERNAL_SERVER_ERROR = "Internal server error"
